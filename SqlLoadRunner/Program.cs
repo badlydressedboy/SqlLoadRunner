@@ -5,13 +5,18 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Data.SqlClient;
+using System.Reflection;
+using System.IO;
 
 namespace SqlLoadRunner
 {
     class Program
     {
-        static string _connString = "server=localhost;Database=master;Trusted_Connection=True;Application Name=Load Test;";
-
+        static string _connString = "server=localhost\\dev2019;Database=master;Trusted_Connection=True;Application Name=SqlLoadRunner;";
+        
+        // populate what databases are installed
+        static List<string> _databases = new List<string>() { "StackOverflow2010" };
+        
         static int ThreadCount = 0;
         static void Main(string[] args)
         {
@@ -22,33 +27,33 @@ namespace SqlLoadRunner
             Console.WriteLine("Starting... ESC to stop");
 
             List<string> queries = new List<string>();
-            //string query = 
-            queries.Add(@"BEGIN TRAN
-DELETE TOP (1) FROM [Adventureworks2012].[Purchasing].[Vendor]
-ROLLBACK");
-            queries.Add(@"DECLARE @RC int
-EXECUTE @RC = [Adventureworks2012].[dbo].[uspGetBillOfMaterials] 316, '2002-06-01 00:00:00.000'");
-            queries.Add("BEGIN TRAN COMMIT TRAN");
-            queries.Add("SELECT * FROM [AdventureWorksDW2012].[dbo].[DimCustomer] BEGIN TRAN COMMIT TRAN");            
-            queries.Add("SELECT *  FROM [AdventureWorksDW2012].[dbo].[FactResellerSales] BEGIN TRAN COMMIT TRAN");            
-            queries.Add("SELECT *  FROM [AdventureWorksDW2012].[dbo].[FactResellerSales] WHERE CurrencyKey = 100");            
-            queries.Add(@"SELECT *  
-    FROM [AdventureWorksDW2012].[dbo].[FactResellerSales] frs
-    INNER JOIN AdventureWorksDW2012.dbo.DimCurrency dc
-	    ON frs.CurrencyKey = dc.CurrencyKey
-    WHERE dc.CurrencyKey = 100
-    ORDER BY ShipDateKey
-    ");            
-            queries.Add(@"SELECT SUM([UnitPrice])
-	, SUM(TotalProductCost)
-	, SUM(SalesAmount)
-  FROM [AdventureWorksDW2012].[dbo].[FactInternetSales]
-WHERE PromotionKey < 10");
-            queries.Add(@"UPDATE [AdventureWorksDW2012].[dbo].[FactSalesQuota]
-SET [SalesAmountQuota] = [SalesAmountQuota] + 1
 
-UPDATE [AdventureWorksDW2012].[dbo].[FactSalesQuota]
-SET [SalesAmountQuota] = [SalesAmountQuota] - 1");
+            try
+            {
+                var binFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\Queries";
+                var dbfolders = Directory.GetDirectories(binFolder);
+
+                foreach(var folder in dbfolders)
+                {
+                    if (_databases.Contains(folder.Replace(Path.GetDirectoryName(folder) + Path.DirectorySeparatorChar, "")))
+                    {
+                        var fileEntries = Directory.GetFiles(folder);
+                        foreach(var f in fileEntries)
+                        {
+                            string text = System.IO.File.ReadAllText(f);
+                            queries.Add(text);
+                        }
+                    }
+                }
+                
+
+
+
+                
+            }catch(Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
 
             do
             {

@@ -1,0 +1,1 @@
+﻿SELECT *  FROM [AdventureWorksDW2012].[dbo].[FactResellerSales] WHERE CurrencyKey = 100

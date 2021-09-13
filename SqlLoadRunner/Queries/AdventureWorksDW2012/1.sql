@@ -1,0 +1,1 @@
+﻿SELECT * FROM [AdventureWorksDW2012].[dbo].[DimCustomer] BEGIN TRAN COMMIT TRAN
