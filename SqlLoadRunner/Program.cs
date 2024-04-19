@@ -7,6 +7,7 @@ using System.Threading;
 using System.Data.SqlClient;
 using System.Reflection;
 using System.IO;
+using SqlLoadRunner.Models;
 
 namespace SqlLoadRunner
 {
@@ -14,6 +15,10 @@ namespace SqlLoadRunner
     {
         static string _connString = "server=localhost\\dev2019;Database=master;Trusted_Connection=True;Application Name=SqlLoadRunner;";
         
+        static List<Query> _queries = new List<Query>();    
+
+
+
         // populate what databases are installed
         static List<string> _databases = new List<string>() { "StackOverflow2010" };
         
