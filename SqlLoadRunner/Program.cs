@@ -8,6 +8,8 @@ using System.Data.SqlClient;
 using System.Reflection;
 using System.IO;
 using SqlLoadRunner.Models;
+using static System.Net.Mime.MediaTypeNames;
+using System.Xml.Linq;
 
 namespace SqlLoadRunner
 {
@@ -17,6 +19,8 @@ namespace SqlLoadRunner
         
         static List<Query> _queries = new List<Query>();    
 
+        static List<string> _connectionStrings = new List<string>();
+        static List<SqlServer> _sqlServers = new List<SqlServer>();
 
 
         // populate what databases are installed
@@ -27,6 +31,8 @@ namespace SqlLoadRunner
         {
             int minConnections = 5;
             int maxConnections = 20;
+
+            // need to setup config file for this so local pc and vm can be radically different 
             
 
             Console.WriteLine("Starting... ESC to stop");
@@ -35,10 +41,48 @@ namespace SqlLoadRunner
 
             try
             {
-                var binFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\Queries";
+                var binFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                var queriesFolder = binFolder + "\\Queries";    
                 var dbfolders = Directory.GetDirectories(binFolder);
 
-                foreach(var folder in dbfolders)
+                var serverXml = XElement.Load((string)binFolder + "\\servers.xml");
+
+
+                foreach (var server in serverXml.Elements("server"))
+                {
+                    Console.WriteLine("Adding " + server.Attribute("name").Value);
+                    //_connectionStrings.Add($"server={server.Attribute("name").Value};Database=master;Trusted_Connection=True;Application Name=SqlLoadRunner;");
+                    _sqlServers.Add(new SqlServer() { ConnectionString = $"server={server.Attribute("name").Value};Database=master;Trusted_Connection=True;Application Name=SqlLoadRunner;", Name=server.Attribute("name").Value });
+                }
+
+                // start a task for each server and then start another for each db localted
+                // server
+                foreach (var sqlServer in _sqlServers)
+                {
+                    // at server level
+                   
+                    // get databases
+                    using (SqlConnection conn1 = new SqlConnection(sqlServer.ConnectionString))
+                    {
+                        conn1.Open();
+                        SqlCommand comm = conn1.CreateCommand();
+                        comm.CommandTimeout = 30000;
+                        comm.CommandText = "SELECT name FROM sys.databases";
+                        comm.CommandType = System.Data.CommandType.Text;
+                        SqlDataReader reader = comm.ExecuteReader();
+                        while (reader.Read())
+                        {
+                            var db = new Database(reader.GetString(0), sqlServer.ConnectionString);
+                            sqlServer.Databases.Add(db);
+                        }
+                    }
+                }   
+
+                // start a thread for each DB found
+
+
+
+                foreach (var folder in dbfolders)
                 {
                     if (_databases.Contains(folder.Replace(Path.GetDirectoryName(folder) + Path.DirectorySeparatorChar, "")))
                     {
@@ -50,10 +94,6 @@ namespace SqlLoadRunner
                         }
                     }
                 }
-                
-
-
-
                 
             }catch(Exception ex)
             {
