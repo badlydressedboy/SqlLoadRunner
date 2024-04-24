@@ -10,6 +10,6 @@ namespace SqlLoadRunner.Models
     {
         public string Name { get; set; }
         public string ConnectionString { get; set; }
-        public List<Database> Databases { get; set; }   
+        public List<Database> Databases { get; set; }   = new List<Database>();
     }
 }

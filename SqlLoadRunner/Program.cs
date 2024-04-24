@@ -37,13 +37,24 @@ namespace SqlLoadRunner
 
             Console.WriteLine("Starting... ESC to stop");
 
-            List<string> queries = new List<string>();
-
             try
             {
                 var binFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
                 var queriesFolder = binFolder + "\\Queries";    
-                var dbfolders = Directory.GetDirectories(binFolder);
+                var dbfolders = Directory.GetDirectories(queriesFolder);
+
+                foreach (var folder in dbfolders)
+                {
+                   
+                        var fileEntries = Directory.GetFiles(folder);
+                        foreach (var f in fileEntries)
+                        {
+                            string text = File.ReadAllText(f);
+                            Query q = new Query() { Sql = text, DatabaseTarget = folder };
+                            _queries.Add(q);
+                        }
+                    
+                }
 
                 var serverXml = XElement.Load((string)binFolder + "\\servers.xml");
 
@@ -66,13 +77,15 @@ namespace SqlLoadRunner
                     {
                         conn1.Open();
                         SqlCommand comm = conn1.CreateCommand();
-                        comm.CommandTimeout = 30000;
-                        comm.CommandText = "SELECT name FROM sys.databases";
+                        comm.CommandTimeout = 10000;
+                        comm.CommandText = "SELECT name FROM sys.databases where name not in ('master','tempdb','model','msdb')";
                         comm.CommandType = System.Data.CommandType.Text;
                         SqlDataReader reader = comm.ExecuteReader();
                         while (reader.Read())
                         {
-                            var db = new Database(reader.GetString(0), sqlServer.ConnectionString);
+                            string dbName = reader.GetString(0);
+                            var dbQueries = _queries.Where(q => dbName.Contains(q.DatabaseTarget)).ToList();   
+                            var db = new Database(dbName, sqlServer.ConnectionString, dbQueries);
                             sqlServer.Databases.Add(db);
                         }
                     }
@@ -82,18 +95,7 @@ namespace SqlLoadRunner
 
 
 
-                foreach (var folder in dbfolders)
-                {
-                    if (_databases.Contains(folder.Replace(Path.GetDirectoryName(folder) + Path.DirectorySeparatorChar, "")))
-                    {
-                        var fileEntries = Directory.GetFiles(folder);
-                        foreach(var f in fileEntries)
-                        {
-                            string text = System.IO.File.ReadAllText(f);
-                            queries.Add(text);
-                        }
-                    }
-                }
+                
                 
             }catch(Exception ex)
             {
@@ -104,55 +106,14 @@ namespace SqlLoadRunner
             {
                 while (!Console.KeyAvailable)
                 {
-                    // random amount of connection in bounds per iteration
-                    Random rnd = new Random();
-                    int connections = rnd.Next(minConnections, maxConnections);
-
-                    for (int i = connections; i > 0; i--)
-                    {
-                        string iterationQuery = queries[i % queries.Count];
-                        Thread myThread = new Thread(() => DoQuery(iterationQuery));
-                        myThread.Start();
-                    }
-
-                    while (ThreadCount > 0)
-                    {
-                        System.Threading.Thread.Sleep(1000);
-                    }
-                    Console.WriteLine("Finished iteration");
-                    System.Threading.Thread.Sleep(1000);
+                  
+                    Thread.Sleep(1000);
+                  
                 }
             } while (Console.ReadKey(true).Key != ConsoleKey.Escape);                            
 
         }
 
-        private static void DoQuery(string query)
-        {
-            ThreadCount++;
-            Console.WriteLine(query);
-
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(_connString))
-                {                    
-                    conn.Open();
-                    SqlCommand comm = conn.CreateCommand();
-                    comm.CommandTimeout = 5000;
-                    
-                    comm.CommandText = query;
-                    comm.CommandType = System.Data.CommandType.Text;
-                    comm.ExecuteNonQuery();
-                }
-                
-            }
-            catch (SqlException ex)
-            {
-                Console.WriteLine();
-                Console.WriteLine(ex.Message);
-                Console.WriteLine();
-            }
-
-            ThreadCount--;
-        }
+       
     }
 }
