@@ -11,5 +11,11 @@ namespace SqlLoadRunner.Models
         public string DatabaseTarget { get; set; }  
         public string Name { get; set; }    
         public string Sql { get; set; }
+        
+    }
+
+    public class  QueryInstance : Query
+    {
+        public bool IsRunning { get; set; }
     }
 }
