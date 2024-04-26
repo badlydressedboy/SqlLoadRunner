@@ -49,8 +49,10 @@ namespace SqlLoadRunner
                         var fileEntries = Directory.GetFiles(folder);
                         foreach (var f in fileEntries)
                         {
+                            string folderNameOnly = Path.GetFileName(folder);
+                            string fileNameOnly = Path.GetFileName(f);
                             string text = File.ReadAllText(f);
-                            Query q = new Query() { Sql = text, DatabaseTarget = folder };
+                            Query q = new Query() { Sql = text, DatabaseTarget = folderNameOnly, Name = fileNameOnly };
                             _queries.Add(q);
                         }
                     
@@ -63,7 +65,8 @@ namespace SqlLoadRunner
                 {
                     Console.WriteLine("Adding " + server.Attribute("name").Value);
                     //_connectionStrings.Add($"server={server.Attribute("name").Value};Database=master;Trusted_Connection=True;Application Name=SqlLoadRunner;");
-                    _sqlServers.Add(new SqlServer() { ConnectionString = $"server={server.Attribute("name").Value};Database=master;Trusted_Connection=True;Application Name=SqlLoadRunner;", Name=server.Attribute("name").Value });
+                    _sqlServers.Add(new SqlServer() { ConnectionString = $"server={server.Attribute("name").Value};Database=master;Trusted_Connection=True;Application Name=SqlLoadRunner;TrustServerCertificate=True;"
+                        , Name=server.Attribute("name").Value });
                 }
 
                 // start a task for each server and then start another for each db localted
@@ -71,32 +74,37 @@ namespace SqlLoadRunner
                 foreach (var sqlServer in _sqlServers)
                 {
                     // at server level
-                   
-                    // get databases
-                    using (SqlConnection conn1 = new SqlConnection(sqlServer.ConnectionString))
+
+                    Task.Run(() =>
                     {
-                        conn1.Open();
-                        SqlCommand comm = conn1.CreateCommand();
-                        comm.CommandTimeout = 10000;
-                        comm.CommandText = "SELECT name FROM sys.databases where name not in ('master','tempdb','model','msdb')";
-                        comm.CommandType = System.Data.CommandType.Text;
-                        SqlDataReader reader = comm.ExecuteReader();
-                        while (reader.Read())
+                        try
                         {
-                            string dbName = reader.GetString(0);
-                            var dbQueries = _queries.Where(q => dbName.Contains(q.DatabaseTarget)).ToList();   
-                            var db = new Database(dbName, sqlServer.ConnectionString, dbQueries);
-                            sqlServer.Databases.Add(db);
-                        }
-                    }
+                            // get databases
+                            using (SqlConnection conn1 = new SqlConnection(sqlServer.ConnectionString))
+                            {
+                                conn1.Open();
+                                SqlCommand comm = conn1.CreateCommand();
+                                comm.CommandTimeout = 10000;
+                                comm.CommandText = "SELECT name FROM sys.databases where name not in ('master','tempdb','model','msdb')";
+                                comm.CommandType = System.Data.CommandType.Text;
+                                SqlDataReader reader = comm.ExecuteReader();
+                                while (reader.Read())
+                                {
+                                    string dbName = reader.GetString(0);
+                                    var dbQueries = _queries.Where(q => dbName.Contains(q.DatabaseTarget)).ToList();
+                                    var db = new Database(dbName, sqlServer.ConnectionString, dbQueries);
+                                    sqlServer.Databases.Add(db);
+                                }
+                            }
+                        }catch(Exception ex)
+                        {
+                            Console.WriteLine(ex);
+                        }   
+                    });
                 }   
 
                 // start a thread for each DB found
-
-
-
-                
-                
+ 
             }catch(Exception ex)
             {
                 Console.WriteLine(ex);
