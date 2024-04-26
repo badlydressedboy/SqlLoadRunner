@@ -10,30 +10,27 @@ using System.IO;
 using SqlLoadRunner.Models;
 using static System.Net.Mime.MediaTypeNames;
 using System.Xml.Linq;
+using System.Configuration;
 
 namespace SqlLoadRunner
 {
     class Program
     {
-        static string _connString = "server=localhost\\dev2019;Database=master;Trusted_Connection=True;Application Name=SqlLoadRunner;";
-        
         static List<Query> _queries = new List<Query>();    
-
-        static List<string> _connectionStrings = new List<string>();
         static List<SqlServer> _sqlServers = new List<SqlServer>();
+        static int _minDbConnections;
+        static int _maxDbConnections;
 
-
-        // populate what databases are installed
-        static List<string> _databases = new List<string>() { "StackOverflow2010" };
-        
-        static int ThreadCount = 0;
         static void Main(string[] args)
         {
-            int minConnections = 5;
-            int maxConnections = 20;
-
-            // need to setup config file for this so local pc and vm can be radically different 
+            // get min and max settings from settinhgs file
             
+            if(int.TryParse( ConfigurationManager.AppSettings["MinDbConnections"], out int minResult)){
+                _minDbConnections = minResult;
+            }
+            if (int.TryParse(ConfigurationManager.AppSettings["MaxDbConnections"], out int maxResult)){
+                _maxDbConnections = maxResult;
+            }
 
             Console.WriteLine("Starting... ESC to stop");
 
@@ -92,7 +89,7 @@ namespace SqlLoadRunner
                                 {
                                     string dbName = reader.GetString(0);
                                     var dbQueries = _queries.Where(q => dbName.Contains(q.DatabaseTarget)).ToList();
-                                    var db = new Database(dbName, sqlServer.ConnectionString, dbQueries);
+                                    var db = new Database(dbName, sqlServer.ConnectionString, dbQueries, _minDbConnections, _maxDbConnections);
                                     sqlServer.Databases.Add(db);
                                 }
                             }

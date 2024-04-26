@@ -16,14 +16,22 @@ namespace SqlLoadRunner.Models
 
         List<Query> _referenceQueries; // only ones appropriated for this db 
         
-        List<QueryInstance> _queryInstances = new List<QueryInstance>(); 
+        List<QueryInstance> _queryInstances = new List<QueryInstance>();
 
-        
-        public Database(string name, string connectionString, List<Query> queries)
+        ConsoleWriteContext _cwc;
+        int _minDbConnections;
+        int _maxDbConnections;
+
+        public Database(string name, string connectionString, List<Query> queries, int minConns, int maxConns)
         {
             Name = name;
             ConnectionString = connectionString + $"; database={name}";
             _referenceQueries = queries;
+
+            _minDbConnections = minConns;
+            _maxDbConnections = maxConns;
+
+            _cwc = new ConsoleWriteContext(true, $"DB: {name}");
 
             SetupQueries();
 
@@ -45,11 +53,13 @@ namespace SqlLoadRunner.Models
             if (_referenceQueries.Count == 0) return; // no queries to run 
 
             var random = new Random();
-            var targetQueryCount = random.Next(1, 5);
+            var targetQueryCount = random.Next(_minDbConnections, _maxDbConnections);
 
             _queryInstances.RemoveAll(q => !q.IsRunning);
 
             int runningCount = _queryInstances.FindAll(q => q.IsRunning).Count;
+            
+            //_cwc.WriteWorkingAnimation();
 
             if (runningCount < targetQueryCount)
             {
@@ -63,8 +73,11 @@ namespace SqlLoadRunner.Models
 
                     // start the query
                     Task.Run(() => StartQuery(newQuery));
+
+                    
                 }
             }
+            _cwc.WriteAtCurrent($"Target {targetQueryCount}, Running: {_queryInstances.Count}");
         }
 
         private void StartQuery(QueryInstance query)
@@ -73,7 +86,7 @@ namespace SqlLoadRunner.Models
             if (query == null || query.IsRunning) return;
             
             query.IsRunning = true;
-            Console.WriteLine($"Starting query {query.Name}");
+            //Console.WriteLine($"Starting query {query.Name}");
             try
             {
                 using(var conn = new SqlConnection(ConnectionString))
@@ -85,7 +98,7 @@ namespace SqlLoadRunner.Models
                         cmd.ExecuteReader();
                     }
                 }
-                Console.WriteLine($"Complete query {query.Name}");
+                //Console.WriteLine($"Complete query {query.Name}");
             }
             catch (Exception ex)
             {
