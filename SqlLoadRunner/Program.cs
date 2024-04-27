@@ -49,6 +49,9 @@ namespace SqlLoadRunner
                             string folderNameOnly = Path.GetFileName(folder);
                             string fileNameOnly = Path.GetFileName(f);
                             string text = File.ReadAllText(f);
+
+                            if (string.IsNullOrEmpty(text)) continue; 
+
                             Query q = new Query() { Sql = text, DatabaseTarget = folderNameOnly, Name = fileNameOnly };
                             _queries.Add(q);
                         }
@@ -60,7 +63,7 @@ namespace SqlLoadRunner
 
                 foreach (var server in serverXml.Elements("server"))
                 {
-                    Console.WriteLine("Adding " + server.Attribute("name").Value);
+                    
                     //_connectionStrings.Add($"server={server.Attribute("name").Value};Database=master;Trusted_Connection=True;Application Name=SqlLoadRunner;");
                     _sqlServers.Add(new SqlServer() { ConnectionString = $"server={server.Attribute("name").Value};Database=master;Trusted_Connection=True;Application Name=SqlLoadRunner;TrustServerCertificate=True;"
                         , Name=server.Attribute("name").Value });
@@ -88,9 +91,10 @@ namespace SqlLoadRunner
                                 while (reader.Read())
                                 {
                                     string dbName = reader.GetString(0);
-                                    var dbQueries = _queries.Where(q => dbName.Contains(q.DatabaseTarget)).ToList();
+                                    var dbQueries = _queries.Where(q => dbName.ToUpper().Contains(q.DatabaseTarget.ToUpper())).ToList();
                                     var db = new Database(dbName, sqlServer.ConnectionString, dbQueries, _minDbConnections, _maxDbConnections);
                                     sqlServer.Databases.Add(db);
+                                    Console.WriteLine($"Adding {db.Name}, found {dbQueries.Count} queries"  );
                                 }
                             }
                         }catch(Exception ex)
