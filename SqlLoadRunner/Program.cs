@@ -23,8 +23,9 @@ namespace SqlLoadRunner
 
         static void Main(string[] args)
         {
-            // get min and max settings from settinhgs file
-            
+            // get min and max settings from settings file
+            var helper = new Helper();
+
             if(int.TryParse( ConfigurationManager.AppSettings["MinDbConnections"], out int minResult)){
                 _minDbConnections = minResult;
             }

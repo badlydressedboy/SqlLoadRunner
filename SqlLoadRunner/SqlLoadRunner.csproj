@@ -149,6 +149,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ConsoleWriteContext.cs" />
+    <Compile Include="Helper.cs" />
     <Compile Include="Models\Database.cs" />
     <Compile Include="Models\Query.cs" />
     <Compile Include="Models\SqlServer.cs" />

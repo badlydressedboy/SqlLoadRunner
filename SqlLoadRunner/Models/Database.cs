@@ -21,8 +21,8 @@ namespace SqlLoadRunner.Models
         ConsoleWriteContext _cwc;
         int _minDbConnections;
         int _maxDbConnections;
-
-        public Database(string name, string connectionString, List<Query> queries, int minConns, int maxConns)
+        Helper _helper;
+        public Database(string name, string connectionString, List<Query> queries, int minConns, int maxConns, Helper helper)
         {
             Name = name;
             ConnectionString = connectionString + $"; database={name}";
@@ -30,6 +30,7 @@ namespace SqlLoadRunner.Models
 
             _minDbConnections = minConns;
             _maxDbConnections = maxConns;
+            _helper = helper;
 
             _cwc = new ConsoleWriteContext(true, $"DB: {name}");
 
@@ -51,6 +52,7 @@ namespace SqlLoadRunner.Models
             // generate random number of queries to run
 
             if (_referenceQueries.Count == 0) return; // no queries to run 
+            if(_helper.GetCpuPc() > 90) return; // dont thrash cpu, desktop apps will become unresponsive
 
             var random = new Random();
             var targetQueryCount = random.Next(_minDbConnections, _maxDbConnections);
